@@ -3,7 +3,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-// import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:katarasa/screen/home/home_screen.dart';
 import 'package:katarasa/services/login/login_service.dart';
 
@@ -31,21 +30,23 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   void initState() {
     super.initState();
-    _checkAuth();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkAuth();
+    });
   }
 
   void _checkAuth() async {
+    final token = await _localstorage.read(key: 'token');
+    if (token == null) return;
     try {
-      print('ini harus login dlu');
       final response = await profileUser();
-      print(response);
-
       if (response == null || response['status']['code'] != 200) {
-        // Profile gagal diambil, redirect ke login
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (context) => LoginScreen()),
         );
       } else {
+        final saldo = response['data']['balance_formatted'] ?? '1';
+        await _localstorage.write(key: 'saldo', value: saldo);
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (context) => HomeScreen()),
         );
@@ -60,12 +61,13 @@ class _LoginScreenState extends State<LoginScreen> {
   void _loginhalaman() async {
     try {
       final loginkan = await apiLogin(email, password);
-
       if (loginkan != null &&
           loginkan['data'] != null &&
           loginkan['data']['token'] != null) {
         final token = loginkan['data']['token'];
+        final saldo = loginkan['data']['balance_formatted'] ?? '1';
         await _localstorage.write(key: 'token', value: token);
+        await _localstorage.write(key: 'saldo', value: saldo);
 
         // Cek profile setelah login
         final profileResponse = await profileUser();
@@ -165,132 +167,131 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
             ),
-            Positioned(
-              top: MediaQuery.of(context).size.height * 0.43,
-              left: 0,
-              right: 0,
-              child: Container(
-                height: MediaQuery.of(context).size.height * 0.57,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(40),
-                    topRight: Radius.circular(40),
-                  ),
-                ),
-                child: SingleChildScrollView(
-                  child: Padding(
-                    padding: EdgeInsets.only(
-                      bottom: MediaQuery.of(context).viewInsets.bottom,
+            DraggableScrollableSheet(
+              initialChildSize: 0.57,
+              minChildSize: 0.57,
+              maxChildSize: 0.7,
+              builder: (context, scrollController) {
+                return Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(40),
+                      topRight: Radius.circular(40),
                     ),
-                    child: Column(
-                      children: [
-                        SizedBox(height: 30),
-                        Image.asset(
+                  ),
+                  child: ListView(
+                    controller: scrollController,
+                    children: [
+                      AspectRatio(
+                        aspectRatio: 16 / 1,
+                        child: Image.asset(
                           'assets/img/Kata Rasa.png',
-                          fit: BoxFit.cover,
+                          fit: BoxFit.contain,
                         ),
-                        Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 20),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              SizedBox(height: 30),
-                              Text(
-                                "Email",
+                      ),
+                      SizedBox(
+                        height: 50,
+                      ),
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 20),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "Email",
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            SizedBox(height: 8),
+                            TextField(
+                              onChanged: (value) =>
+                                  _login(value, isEmail: true),
+                              decoration: InputDecoration(
+                                hintText: "Masukkan email anda",
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                contentPadding: EdgeInsets.all(16),
+                              ),
+                            ),
+                            SizedBox(height: 20),
+                            Text(
+                              'Password ',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            SizedBox(height: 8),
+                            TextField(
+                              onChanged: (value) =>
+                                  _login(value, isEmail: false),
+                              obscureText: true,
+                              decoration: InputDecoration(
+                                hintText: "Masukkan password anda",
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                contentPadding: EdgeInsets.all(16),
+                              ),
+                            ),
+                            SizedBox(height: 10),
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: Text(
+                                "Lupa password?",
                                 style: TextStyle(
-                                  fontSize: 16,
+                                  color: Colors.brown,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
-                              SizedBox(height: 8),
-                              TextField(
-                                onChanged: (value) =>
-                                    _login(value, isEmail: true),
-                                decoration: InputDecoration(
-                                  hintText: "Masukkan email anda",
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(10),
+                            ),
+                            SizedBox(height: 40),
+                            SizedBox(
+                              width: MediaQuery.of(context).size.width,
+                              child: ElevatedButton(
+                                onPressed: _loginhalaman,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.brown,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(20),
                                   ),
-                                  contentPadding: EdgeInsets.all(16),
                                 ),
-                              ),
-                              SizedBox(height: 20),
-                              Text(
-                                'Password ',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              SizedBox(height: 8),
-                              TextField(
-                                onChanged: (value) =>
-                                    _login(value, isEmail: false),
-                                obscureText: true,
-                                decoration: InputDecoration(
-                                  hintText: "Masukkan password anda",
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  contentPadding: EdgeInsets.all(16),
-                                ),
-                              ),
-                              SizedBox(height: 10),
-                              Align(
-                                alignment: Alignment.centerRight,
                                 child: Text(
-                                  "Lupa password?",
-                                  style: TextStyle(
-                                    color: Colors.brown,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                                  'Login',
+                                  style: TextStyle(color: Colors.white),
                                 ),
                               ),
-                              SizedBox(height: 20),
-                              SizedBox(
-                                width: MediaQuery.of(context).size.width,
-                                child: ElevatedButton(
-                                  onPressed: _loginhalaman,
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.brown,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                  ),
-                                  child: Text(
-                                    'Login',
-                                    style: TextStyle(color: Colors.white),
+                            ),
+                            SizedBox(height: 10),
+                            SizedBox(
+                              width: MediaQuery.of(context).size.width,
+                              child: ElevatedButton(
+                                onPressed: () {},
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(20),
+                                    side: BorderSide(color: Colors.green),
                                   ),
                                 ),
-                              ),
-                              SizedBox(height: 10),
-                              SizedBox(
-                                width: MediaQuery.of(context).size.width,
-                                child: ElevatedButton(
-                                  onPressed: () {},
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.white,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(20),
-                                      side: BorderSide(color: Colors.green),
-                                    ),
-                                  ),
-                                  child: Text(
-                                    'Buat Akun',
-                                    style: TextStyle(color: Colors.green),
-                                  ),
+                                child: Text(
+                                  'Buat Akun',
+                                  style: TextStyle(color: Colors.green),
                                 ),
                               ),
-                            ],
-                          ),
+                            ),
+                            SizedBox(height: 20),
+                          ],
                         ),
-                        SizedBox(height: 20),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                ),
-              ),
+                );
+              },
             ),
           ],
         ),

@@ -13,4 +13,10 @@ class Constants {
   Future<String?> read({required String key}) async {
     return await _localstorage.read(key: key);
   }
+
+  double parseSaldo(String saldo) {
+    String cleanedSaldo = saldo.replaceAll(RegExp(r'[^\d,]'), '');
+    cleanedSaldo = cleanedSaldo.replaceAll(',', '.');
+    return double.parse(cleanedSaldo);
+  }
 }
